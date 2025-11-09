@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Face Enrollment — Magic Circle</title>
 
-  <!-- Tailwind and MediaPipe -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
   <!-- External CSS -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="faceid-bg min-h-screen flex items-center justify-center p-6">
-  <div class="w-full max-w-xl rounded-lg p-6 text-center shadow-xl relative ui-shell">
+
+<body class="faceid-bg">
+  <div class="ui-shell">
     <!-- Cancel (top-left) -->
     <button id="cancel-btn" class="cancel-btn">Cancel</button>
 
@@ -32,8 +33,8 @@
     <canvas id="snap_canvas"></canvas>
 
     <p class="caption">Captured Images</p>
-    <div id="photo-preview-bar" class="preview-bar flex justify-center gap-2 mt-2 h-16">
-        <!-- Previews will be added here -->
+    <div id="photo-preview-bar" class="preview-bar">
+      <!-- Previews will be added here -->
     </div>
 
     <div class="done-wrap">
@@ -41,20 +42,20 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK + Face Enrollment Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-const firebaseConfig = {
-        apiKey: "AIzaSyBujiz5R1qEHcLvlMp9fQIViIMuWs3gRZk",
-        authDomain: "cam-attendance-a4881.firebaseapp.com",
-        projectId: "cam-attendance-a4881",
-        storageBucket: "cam-attendance-a4881.appspot.com",
-        messagingSenderId: "344849505667",
-        appId: "1:344849505667:web:9a8ddb0a009f458fca2ab6",
-        measurementId: "G-RLBS140J6Y",
-      };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBujiz5R1qEHcLvlMp9fQIViIMuWs3gRZk",
+      authDomain: "cam-attendance-a4881.firebaseapp.com",
+      projectId: "cam-attendance-a4881",
+      storageBucket: "cam-attendance-a4881.appspot.com",
+      messagingSenderId: "344849505667",
+      appId: "1:344849505667:web:9a8ddb0a009f458fca2ab6",
+      measurementId: "G-RLBS140J6Y",
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -82,7 +83,7 @@ const firebaseConfig = {
       up: { label: 'Look Up', captured: false },
       down: { label: 'Look Down', captured: false }
     };
-    const poseOrder = ['frontal','left','right','up','down'];
+    const poseOrder = ['frontal', 'left', 'right', 'up', 'down'];
 
     let cssW = 0, cssH = 0, dpr = window.devicePixelRatio || 1;
     function resizeCanvas() {
@@ -98,21 +99,21 @@ const firebaseConfig = {
     window.addEventListener('resize', resizeCanvas);
     requestAnimationFrame(resizeCanvas);
 
-    function draw(progressAngle = 0, showAnim = true) {
-      ctx.clearRect(0,0,cssW,cssH);
-      const cx = cssW/2, cy = cssH/2;
+    function draw(progressAngle = 0) {
+      ctx.clearRect(0, 0, cssW, cssH);
+      const cx = cssW / 2, cy = cssH / 2;
       if (cx === 0 || cy === 0) return;
       const radius = Math.min(cssW, cssH) * 0.42;
 
       ctx.beginPath();
-      ctx.arc(cx, cy, radius + 6, 0, Math.PI*2);
+      ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
       ctx.lineWidth = 2;
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.stroke();
 
       if (progressAngle > 0) {
         ctx.beginPath();
-        ctx.arc(cx, cy, radius, -Math.PI/2, -Math.PI/2 + progressAngle, false);
+        ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + progressAngle, false);
         ctx.lineWidth = 6;
         ctx.strokeStyle = '#32ff85';
         ctx.shadowBlur = 6;
@@ -121,7 +122,7 @@ const firebaseConfig = {
         ctx.shadowBlur = 0;
       } else {
         ctx.beginPath();
-        ctx.arc(cx, cy, radius, -Math.PI/2, Math.PI*3/2);
+        ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 3 / 2);
         ctx.lineWidth = 6;
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.stroke();
@@ -129,18 +130,17 @@ const firebaseConfig = {
 
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0,0,cssW,cssH);
+      ctx.fillRect(0, 0, cssW, cssH);
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
-      ctx.arc(cx, cy, radius * 0.96, 0, Math.PI*2);
+      ctx.arc(cx, cy, radius * 0.96, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
-    let lastAnimTime = performance.now();
-    function loop(now) {
+    function loop() {
       const progress = (Object.keys(captured).length / poseOrder.length) * Math.PI * 2;
-      draw(progress, currentPose !== 'DONE');
+      draw(progress);
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
@@ -157,30 +157,30 @@ const firebaseConfig = {
       snapCanvas.width = vW;
       snapCanvas.height = vH;
       snapCtx.save();
-      snapCtx.translate(vW,0);
-      snapCtx.scale(-1,1);
-      snapCtx.drawImage(videoEl,0,0,vW,vH);
+      snapCtx.translate(vW, 0);
+      snapCtx.scale(-1, 1);
+      snapCtx.drawImage(videoEl, 0, 0, vW, vH);
       snapCtx.restore();
 
-      const dataUrl = snapCanvas.toDataURL('image/jpeg',0.9);
-      captured[poseName]=dataUrl;
+      const dataUrl = snapCanvas.toDataURL('image/jpeg', 0.9);
+      captured[poseName] = dataUrl;
       const img = document.createElement('img');
-      img.src=dataUrl;
+      img.src = dataUrl;
       img.className = 'preview-thumb';
       previewBar.appendChild(img);
 
-      instr.textContent="Captured ✔";
-      setTimeout(()=>{
-        let next=null;
-        for(const p of poseOrder) if(!poses[p].captured){ next=p; break;}
-        if(next){ currentPose=next; instr.textContent=poses[currentPose].label; }
+      instr.textContent = "Captured ✔";
+      setTimeout(() => {
+        let next = null;
+        for (const p of poseOrder) if (!poses[p].captured) { next = p; break; }
+        if (next) { currentPose = next; instr.textContent = poses[currentPose].label; }
         else {
-          currentPose='DONE';
-          instr.textContent='Enrollment Complete';
+          currentPose = 'DONE';
+          instr.textContent = 'Enrollment Complete';
           stopCamera();
           doneBtn.classList.remove('hidden');
         }
-      },700);
+      }, 700);
     }
 
     function detectPoseFromLandmarks(lm) {
@@ -198,95 +198,139 @@ const firebaseConfig = {
       return null;
     }
 
-    const faceMesh=new FaceMesh({
-      locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
     faceMesh.setOptions({
-      maxNumFaces:1, refineLandmarks:true,
-      minDetectionConfidence:0.5, minTrackingConfidence:0.5
+      maxNumFaces: 1, refineLandmarks: true,
+      minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
     });
 
-    faceMesh.onResults((res)=>{
-      if(!res.multiFaceLandmarks||res.multiFaceLandmarks.length===0) {
+    faceMesh.onResults((res) => {
+      if (!res.multiFaceLandmarks || res.multiFaceLandmarks.length === 0) {
         if (currentPose !== 'DONE' && currentPose !== 'frontal') {
           instr.textContent = "Face not detected. Please look straight.";
         }
         return;
       }
-      if(currentPose==='DONE') return;
-      const lm=res.multiFaceLandmarks[0];
-      const detected=detectPoseFromLandmarks(lm);
-      if(!currentPose){
-        currentPose='frontal';
-        instr.textContent=poses[currentPose].label;
+      if (currentPose === 'DONE') return;
+      const lm = res.multiFaceLandmarks[0];
+      const detected = detectPoseFromLandmarks(lm);
+      if (!currentPose) {
+        currentPose = 'frontal';
+        instr.textContent = poses[currentPose].label;
       }
-      if(detected===currentPose && !poses[currentPose].captured) snap(currentPose);
+      if (detected === currentPose && !poses[currentPose].captured) snap(currentPose);
     });
 
-    let camera=null;
-    async function startCamera(){
-      try{
-        camera=new Camera(videoEl,{
-          onFrame:async()=>{await faceMesh.send({image:videoEl});},
-          width:480,height:480
+    let camera = null;
+    async function startCamera() {
+      try {
+        camera = new Camera(videoEl, {
+          onFrame: async () => { await faceMesh.send({ image: videoEl }); },
+          width: 480, height: 480
         });
         await camera.start();
-        currentPose='frontal';
-        instr.textContent=poses[currentPose].label;
+        currentPose = 'frontal';
+        instr.textContent = poses[currentPose].label;
         resizeCanvas();
-      }catch(e){ instr.textContent='Camera error: ' + e.message; }
+      } catch (e) { instr.textContent = 'Camera error: ' + e.message; }
     }
 
-    function stopCamera(){
-      try{
-        if(camera&&camera.stop) camera.stop();
-        if(videoEl.srcObject){
-          const s=videoEl.srcObject;
-          if(s.getTracks) s.getTracks().forEach(t=>t.stop());
-          videoEl.srcObject=null;
+    function stopCamera() {
+      try {
+        if (camera && camera.stop) camera.stop();
+        if (videoEl.srcObject) {
+          const s = videoEl.srcObject;
+          if (s.getTracks) s.getTracks().forEach(t => t.stop());
+          videoEl.srcObject = null;
         }
-      }catch(e){}
+      } catch (e) { }
     }
 
     cancelBtn.addEventListener('click', () => {
       stopCamera();
       instr.textContent = 'Enrollment cancelled';
     });
-
-    // ✅ UPDATED DONE BUTTON LOGIC
     doneBtn.addEventListener('click', async () => {
-      instr.textContent = 'Uploading...';
+      instr.textContent = 'Uploading to Cloudinary...';
+
+      const CLOUD_NAME = "dk0lzipwv"; // e.g. "devdat123"
+      const UPLOAD_PRESET = "face_enroll_unsigned"; // the preset you created
+      const uploadedUrls = {};
 
       try {
-        const user = auth.currentUser;
-        if (!user) {
-          instr.textContent = 'Not logged in.';
-          return;
+        // Upload each image from the captured object
+        for (const [poseName, base64Image] of Object.entries(captured)) {
+          const res = await fetch(base64Image);
+          const blob = await res.blob();
+
+          const formData = new FormData();
+          formData.append("file", blob);
+          formData.append("upload_preset", UPLOAD_PRESET);
+          formData.append("folder", "face_enrollments");
+
+          const uploadRes = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            { method: "POST", body: formData }
+          );
+
+          const data = await uploadRes.json();
+          uploadedUrls[poseName] = data.secure_url;
+          console.log(`✅ Uploaded ${poseName}:`, data.secure_url);
         }
 
-        const token = await user.getIdToken();
+        console.log("All uploaded URLs:", uploadedUrls);
+        instr.textContent = "✅ Uploaded successfully to Cloudinary!";
 
-        const res = await fetch("https://cam-attendance-backend.up.railway.app/enroll", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({ images: Object.values(captured) })
-        });
-
-        const result = await res.json();
-        if (result.status === 'success') {
-          instr.textContent = '✅ Enrollment uploaded successfully!';
-        } else {
-          instr.textContent = '❌ Upload failed: ' + result.message;
-        }
       } catch (err) {
-        instr.textContent = '❌ Error: ' + err.message;
+        console.error("Upload error:", err);
+        instr.textContent = "❌ Error uploading: " + err.message;
       }
     });
+
+
+    // doneBtn.addEventListener('click', async () => {
+    //   instr.textContent = 'Uploading...';
+    //   try {
+    //     const user = auth.currentUser;
+    //     if (!user) {
+    //       instr.textContent = 'Not logged in.';
+    //       return;
+    //     }
+
+    //     const token = await user.getIdToken();
+    //     const res = await fetch("http://localhost:5000/enroll", {
+    //       method: "POST",
+    //       headers: { "Content-Type": "application/json" },
+    //       body: JSON.stringify({
+    //         userId: "test_user_123", // or use Firebase user.uid later
+    //         images: Object.values(captured),
+    //       }),
+    //     });
+
+    //     // const res = await fetch("https://cam-attendance-backend.up.railway.app/enroll", {
+    //     //   method: 'POST',
+    //     //   headers: {
+    //     //     'Content-Type': 'application/json',
+    //     //     'Authorization': 'Bearer ' + token
+    //     //   },
+    //     //   body: JSON.stringify({ images: Object.values(captured) })
+    //     // });
+
+    //     const result = await res.json();
+    //     if (result.status === 'success') {
+    //       instr.textContent = '✅ Enrollment uploaded successfully!';
+    //     } else {
+    //       instr.textContent = '❌ Upload failed: ' + result.message;
+    //     }
+    //   } catch (err) {
+    //     instr.textContent = '❌ Error: ' + err.message;
+    //   }
+    // });
 
     startCamera();
   </script>
 </body>
+
 </html>
