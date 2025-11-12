@@ -53,7 +53,7 @@
 
         <h1 class="login-title">ClassSight Login</h1>
         <p class="login-subtext">
-          Please sign in with your official @nmamit.in Google account.
+          Please sign in with your official nmamit.in Google account.
         </p>
 
         <button id="googleLoginBtn" class="google-login-btn">
@@ -142,14 +142,25 @@
 
     logoutBtn.addEventListener("click", () => signOut(auth));
 
+    // Inside the <script type="module"> block
+
     onAuthStateChanged(auth, (user) => {
       if (user && user.email.endsWith("@nmamit.in")) {
+        // --- ADD THESE LINES TO STORE DATA ---
+        localStorage.setItem('currentUserUid', user.uid);
+        localStorage.setItem('currentUserEmail', user.email);
+        // -------------------------------------
+
         userName.textContent = user.displayName;
         userEmail.textContent = user.email;
         userPhoto.src = user.photoURL;
         loginView.classList.add("hidden");
         loggedInView.classList.remove("hidden");
       } else {
+        // --- ADD THESE LINES TO CLEAR DATA ON LOGOUT ---
+        localStorage.removeItem('currentUserUid');
+        localStorage.removeItem('currentUserEmail');
+        // -----------------------------------------------
         loggedInView.classList.add("hidden");
         loginView.classList.remove("hidden");
       }

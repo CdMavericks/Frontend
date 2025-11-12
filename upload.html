@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Face Enrollment — Magic Circle</title>
+  <title>Student Face Enrollment</title>
 
   <!-- MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -252,80 +252,145 @@
       stopCamera();
       instr.textContent = 'Enrollment cancelled';
     });
-    doneBtn.addEventListener('click', async () => {
-      instr.textContent = 'Uploading to Cloudinary...';
+    // ... (keep the existing variable and function definitions above)
 
-      const CLOUD_NAME = "dk0lzipwv"; // e.g. "devdat123"
-      const UPLOAD_PRESET = "face_enroll_unsigned"; // the preset you created
-      const uploadedUrls = {};
+    // Ensure this variable is defined near the top with your other constants
+    const BACKEND_URL = "http://localhost:5000/enroll"; // The URL of your Node.js endpoint
+    doneBtn.addEventListener('click', async () => {
+      const userId = localStorage.getItem('currentUserUid');
+      const email = localStorage.getItem('currentUserEmail');
+
+      // Safety check to ensure data exists before proceeding
+      if (!userId || !email) {
+        instr.textContent = '❌ Error: Login details are missing. Please re-login.';
+        return;
+      }
+
+      // Extract USN and convert to uppercase
+      let usn = email.slice(0, 10).toUpperCase();
+
+      // Use the backend URL constant
+      const BACKEND_URL = "http://localhost:5000/enroll";
+
+      instr.textContent = "Uploading images and saving enrollment data...";
 
       try {
-        // Upload each image from the captured object
-        for (const [poseName, base64Image] of Object.entries(captured)) {
-          const res = await fetch(base64Image);
-          const blob = await res.blob();
+        // STEP 1: Send base64 images and user data to Node.js backend
+        const backendRes = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: userId, // Firebase UID (DB Primary Key)
+            usn: usn,       // Extracted USN (New DB column)
+            // Send the captured base64 images to the server
+            images: Object.values(captured)
+          }),
+        });
 
-          const formData = new FormData();
-          formData.append("file", blob);
-          formData.append("upload_preset", UPLOAD_PRESET);
-          formData.append("folder", "face_enrollments");
+        const result = await backendRes.json();
 
-          const uploadRes = await fetch(
-            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-            { method: "POST", body: formData }
-          );
-
-          const data = await uploadRes.json();
-          uploadedUrls[poseName] = data.secure_url;
-          console.log(`✅ Uploaded ${poseName}:`, data.secure_url);
+        // STEP 2: Handle response from the backend
+        if (result.status === 'success') {
+          instr.textContent = '✅ Enrollment saved successfully to Database!';
+          console.log("Backend response:", result);
+        } else {
+          // Log the specific error message from the server
+          instr.textContent = '❌ Database Save Failed: ' + (result.error || 'Check server logs');
+          console.error("Backend Error:", result);
         }
 
-        console.log("All uploaded URLs:", uploadedUrls);
-        instr.textContent = "✅ Uploaded successfully to Cloudinary!";
-
       } catch (err) {
-        console.error("Upload error:", err);
-        instr.textContent = "❌ Error uploading: " + err.message;
+        // This catches connection failures (like ERR_CONNECTION_REFUSED)
+        console.error("Enrollment process error:", err);
+        instr.textContent = "❌ Error connecting to server: " + err.message;
       }
     });
 
-
     // doneBtn.addEventListener('click', async () => {
-    //   instr.textContent = 'Uploading...';
+    //   instr.textContent = 'Uploading to Cloudinary...';
+    //   const userId = localStorage.getItem('currentUserUid');
+    //   const email = localStorage.getItem('currentUserEmail');
+    //   let usn = email.slice(0, 10).toUpperCase();
+    //   if (!userId || !email) {
+    //     instr.textContent = '❌ Error: Login details are missing. Please re-login.';
+    //     return;
+    //   }
+
+    //   // *** STEP 1: Cloudinary Setup ***
+    //   const CLOUD_NAME = "dk0lzipwv";
+    //   const UPLOAD_PRESET = "face_enroll_unsigned";
+    //   const uploadedUrls = {};
+    //   //const userId = "magic_user_001"; // <<< Use a consistent hardcoded ID for testing (Primary Key)
+
     //   try {
-    //     const user = auth.currentUser;
-    //     if (!user) {
-    //       instr.textContent = 'Not logged in.';
-    //       return;
+    //     // Upload each image from the captured object to Cloudinary
+    //     for (const [poseName, base64Image] of Object.entries(captured)) {
+    //       const res = await fetch(base64Image);
+    //       const blob = await res.blob();
+
+    //       const formData = new FormData();
+    //       formData.append("file", blob);
+    //       formData.append("upload_preset", UPLOAD_PRESET);
+    //       // It's recommended to use the userId in the folder name for organization
+    //       formData.append("folder", `face_enrollments/${userId}`);
+
+    //       const uploadRes = await fetch(
+    //         `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    //         { method: "POST", body: formData }
+    //       );
+
+    //       const data = await uploadRes.json();
+    //       uploadedUrls[poseName] = data.secure_url;
+    //       console.log(`✅ Uploaded ${poseName}:`, data.secure_url);
     //     }
 
-    //     const token = await user.getIdToken();
-    //     const res = await fetch("http://localhost:5000/enroll", {
+    //     // *** STEP 2: Send All URLs to your Node.js Backend ***
+    //     instr.textContent = "Saving enrollment data...";
+
+    //     // Prepare the array of URLs in the correct order for the backend
+    //     const imagesForBackend = [
+    //       uploadedUrls.frontal,
+    //       uploadedUrls.left,
+    //       uploadedUrls.right,
+    //       uploadedUrls.up,
+    //       uploadedUrls.down,
+    //     ];
+
+    //     // This is the call that interacts with your server.js and MySQL
+    //     const backendRes = await fetch(BACKEND_URL, {
     //       method: "POST",
     //       headers: { "Content-Type": "application/json" },
     //       body: JSON.stringify({
-    //         userId: "test_user_123", // or use Firebase user.uid later
-    //         images: Object.values(captured),
+    //         userId: userId,
+    //         usn: usn,
+    //         // The backend expects an 'images' array of base64 strings,
+    //         // but since you did the Cloudinary upload here, we need to adapt 
+    //         // the backend OR change the backend to accept 'urls' instead.
+    //         // Since the backend expects 'images' with base64, we will 
+    //         // revert to sending the base64 data to the backend for the original
+    //         // server.js to handle the Cloudinary upload.
+    //         //
+    //         // *************************************************************
+    //         // REVERTING TO ORIGINAL BACKEND STRATEGY for simplicity:
+    //         // Send the captured base64 images, let the backend upload them.
+    //         // *************************************************************
+    //         images: Object.values(captured)
     //       }),
     //     });
 
-    //     // const res = await fetch("https://cam-attendance-backend.up.railway.app/enroll", {
-    //     //   method: 'POST',
-    //     //   headers: {
-    //     //     'Content-Type': 'application/json',
-    //     //     'Authorization': 'Bearer ' + token
-    //     //   },
-    //     //   body: JSON.stringify({ images: Object.values(captured) })
-    //     // });
+    //     const result = await backendRes.json();
 
-    //     const result = await res.json();
     //     if (result.status === 'success') {
-    //       instr.textContent = '✅ Enrollment uploaded successfully!';
+    //       instr.textContent = '✅ Enrollment saved successfully to Database!';
+    //       console.log("Backend response:", result);
     //     } else {
-    //       instr.textContent = '❌ Upload failed: ' + result.message;
+    //       instr.textContent = '❌ Database Save Failed: ' + (result.error || 'Check server logs');
+    //       console.error("Backend Error:", result);
     //     }
+
     //   } catch (err) {
-    //     instr.textContent = '❌ Error: ' + err.message;
+    //     console.error("Enrollment process error:", err);
+    //     instr.textContent = "❌ Error in enrollment process: " + err.message;
     //   }
     // });
 
